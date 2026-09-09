@@ -1,0 +1,98 @@
+/* Hide Elementor default list columns */
+body.scfos-submissions-page .e-form-submissions-list-table .column-actions,
+body.scfos-submissions-page .e-form-submissions-list-table .column-form,
+body.scfos-submissions-page .e-form-submissions-list-table .column-page,
+body.scfos-submissions-page .e-form-submissions-list-table .column-id,
+body.scfos-submissions-page .e-form-submissions-list-table th.column-actions,
+body.scfos-submissions-page .e-form-submissions-list-table th.column-form,
+body.scfos-submissions-page .e-form-submissions-list-table th.column-page,
+body.scfos-submissions-page .e-form-submissions-list-table th.column-id {
+	display: none !important;
+}
+
+/* Detail page: hide Form / Page / Actions log */
+body.scfos-submissions-page .scfos-hide-form-section,
+body.scfos-submissions-page .e-form-submissions-action-log,
+body.scfos-submissions-page .e-form-submissions-actions-log {
+	display: none !important;
+}
+
+.scfos-payment-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 88px;
+	padding: 4px 12px;
+	border-radius: 3px;
+	font-size: 12px;
+	line-height: 1.4;
+	cursor: pointer;
+	transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+	box-sizing: border-box;
+}
+
+.scfos-payment-btn:disabled {
+	opacity: 0.65;
+	cursor: wait;
+}
+
+.scfos-payment-btn.is-pending {
+	background: transparent;
+	color: #1f6b4c;
+	border: 1px solid #1f6b4c;
+}
+
+.scfos-payment-btn.is-pending:hover:not(:disabled) {
+	background: rgba(31, 107, 76, 0.08);
+}
+
+.scfos-payment-btn.is-confirmed {
+	background: #1f6b4c;
+	color: #fff;
+	border: 1px solid #1f6b4c;
+}
+
+.scfos-payment-btn.is-confirmed:hover:not(:disabled) {
+	background: #185a40;
+	border-color: #185a40;
+}
+
+.scfos-col-bank-code,
+.scfos-col-payment {
+	vertical-align: middle;
+}
+
+.scfos-toast {
+	position: fixed;
+	z-index: 100000;
+	right: 24px;
+	bottom: 24px;
+	max-width: 360px;
+	padding: 12px 16px;
+	border-radius: 4px;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+	color: #fff;
+	font-size: 13px;
+	line-height: 1.5;
+	opacity: 0;
+	transform: translateY(8px);
+	transition: opacity 0.2s ease, transform 0.2s ease;
+	pointer-events: none;
+}
+
+.scfos-toast.is-visible {
+	opacity: 1;
+	transform: translateY(0);
+}
+
+.scfos-toast.is-error {
+	background: #b32d2e;
+}
+
+.scfos-toast.is-success {
+	background: #1f6b4c;
+}
+
+.scfos-detail-payment-row td {
+	vertical-align: middle;
+}
