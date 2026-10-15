@@ -8,9 +8,24 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Plugin {
 
 	const FIELD_BANK_CODE    = 'bank_code';
+	const FIELD_COURSE_NAME  = 'course_name';
+	const FIELD_COURSE_FEE   = 'course_fee';
 	const FIELD_CONTACT_MAIL = 'contact_mail';
 	const BANK_CODE_LABEL    = '匯款末5碼';
 	const PAYMENT_LABEL      = '確認款項';
+
+	/**
+	 * Form fields shown as extra columns in Submissions, in display order.
+	 *
+	 * @return array<string, string> Field ID => column label.
+	 */
+	public static function get_display_fields() {
+		return array(
+			self::FIELD_COURSE_NAME => '課程名稱',
+			self::FIELD_COURSE_FEE  => '課程費用',
+			self::FIELD_BANK_CODE   => self::BANK_CODE_LABEL,
+		);
+	}
 
 	/**
 	 * @var Plugin|null

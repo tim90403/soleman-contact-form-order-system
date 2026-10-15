@@ -223,7 +223,7 @@ class Email_Template {
 			'scfos-email-template-admin',
 			SCFOS_URL . 'assets/css/email-template-admin.css',
 			array(),
-			SCFOS_VERSION
+			scfos_asset_version( 'assets/css/email-template-admin.css' )
 		);
 	}
 

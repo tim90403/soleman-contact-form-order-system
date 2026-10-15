@@ -32,16 +32,24 @@ class Submissions_UI {
 			'scfos-admin-submissions',
 			SCFOS_URL . 'assets/css/admin-submissions.css',
 			array(),
-			SCFOS_VERSION
+			scfos_asset_version( 'assets/css/admin-submissions.css' )
 		);
 
 		wp_enqueue_script(
 			'scfos-admin-submissions',
 			SCFOS_URL . 'assets/js/admin-submissions.js',
 			array(),
-			SCFOS_VERSION,
+			scfos_asset_version( 'assets/js/admin-submissions.js' ),
 			true
 		);
+
+		$display_fields = array();
+		foreach ( Plugin::get_display_fields() as $key => $label ) {
+			$display_fields[] = array(
+				'key'   => $key,
+				'label' => $label,
+			);
+		}
 
 		wp_localize_script(
 			'scfos-admin-submissions',
@@ -49,9 +57,8 @@ class Submissions_UI {
 			array(
 				'restUrl'        => esc_url_raw( rest_url( Rest_Api::NAMESPACE . '/' ) ),
 				'nonce'          => wp_create_nonce( 'wp_rest' ),
-				'bankCodeLabel'  => Plugin::BANK_CODE_LABEL,
+				'displayFields'  => $display_fields,
 				'paymentLabel'   => Plugin::PAYMENT_LABEL,
-				'bankCodeField'  => Plugin::FIELD_BANK_CODE,
 				'confirmText'    => __( '確認收款', 'soleman-contact-form-order-system' ),
 				'confirmedText'  => __( '已確認', 'soleman-contact-form-order-system' ),
 				'loadingText'    => __( '處理中…', 'soleman-contact-form-order-system' ),

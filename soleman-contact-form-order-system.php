@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Soleman Contact Form Order System
  * Description: 擴充 Elementor Form Submissions：顯示匯款末5碼、確認收款按鈕，並以 Elementor 信件版型寄送確認信。
- * Version: 1.0.0
+ * Version: 1.1.0
  * Author: Soleman
  * Text Domain: soleman-contact-form-order-system
  * Requires Plugins: elementor, pro-elements
@@ -12,11 +12,22 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'SCFOS_VERSION', '1.0.0' );
+define( 'SCFOS_VERSION', '1.1.0' );
 define( 'SCFOS_FILE', __FILE__ );
 define( 'SCFOS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'SCFOS_URL', plugin_dir_url( __FILE__ ) );
 define( 'SCFOS_BASENAME', plugin_basename( __FILE__ ) );
+
+/**
+ * Asset version that changes whenever the file changes, so caches never serve stale JS/CSS.
+ *
+ * @param string $relative_path Path relative to the plugin root.
+ * @return string
+ */
+function scfos_asset_version( $relative_path ) {
+	$mtime = @filemtime( SCFOS_PATH . $relative_path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+	return $mtime ? SCFOS_VERSION . '.' . $mtime : SCFOS_VERSION;
+}
 
 require_once SCFOS_PATH . 'includes/class-plugin.php';
 

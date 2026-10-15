@@ -48,9 +48,14 @@ class Rest_Api {
 				'callback'            => array( $this, 'get_submissions_extra' ),
 				'permission_callback' => array( $this, 'can_manage' ),
 				'args'                => array(
-					'ids' => array(
+					'ids'         => array(
 						'required' => true,
 						'type'     => 'string',
+					),
+					'with_labels' => array(
+						'required' => false,
+						'type'     => 'boolean',
+						'default'  => false,
 					),
 				),
 			)
@@ -88,22 +93,28 @@ class Rest_Api {
 		$ids_raw = (string) $request->get_param( 'ids' );
 		$ids     = array_filter( array_map( 'intval', explode( ',', $ids_raw ) ) );
 
-		$extras   = $this->submissions->get_extra_for_ids( $ids );
-		$statuses = $this->payment_status->get_statuses( $ids );
-		$items    = array();
+		$extras      = $this->submissions->get_extra_for_ids( $ids );
+		$statuses    = $this->payment_status->get_statuses( $ids );
+		$with_labels = (bool) $request->get_param( 'with_labels' );
+		$items       = array();
 
 		foreach ( $ids as $id ) {
-			$extra    = isset( $extras[ $id ] ) ? $extras[ $id ] : array(
-				'id'           => $id,
-				'bank_code'    => '',
+			$extra = isset( $extras[ $id ] ) ? $extras[ $id ] : array(
+				'fields'       => array_fill_keys( array_keys( Plugin::get_display_fields() ), '' ),
 				'contact_mail' => '',
 			);
-			$items[] = array(
+			$item  = array(
 				'id'           => $id,
-				'bank_code'    => $extra['bank_code'],
+				'fields'       => (object) $extra['fields'],
 				'contact_mail' => $extra['contact_mail'],
 				'is_confirmed' => ! empty( $statuses[ $id ] ),
 			);
+
+			if ( $with_labels ) {
+				$item['form_labels'] = (object) $this->submissions->get_form_field_labels( $id );
+			}
+
+			$items[] = $item;
 		}
 
 		return rest_ensure_response( array( 'items' => $items ) );

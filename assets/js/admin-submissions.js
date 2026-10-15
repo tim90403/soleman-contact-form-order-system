@@ -6,7 +6,15 @@
 	}
 
 	var cfg = scfosAdmin;
+	if (!Array.isArray(cfg.displayFields) || !cfg.displayFields.length) {
+		cfg.displayFields = [
+			{ key: 'course_name', label: '課程名稱' },
+			{ key: 'course_fee', label: '課程費用' },
+			{ key: 'bank_code', label: '匯款末5碼' }
+		];
+	}
 	var cache = {};
+	var detailFetching = {};
 	var fetchTimer = null;
 	var observer = null;
 
@@ -155,41 +163,44 @@
 		return ids;
 	}
 
-	function ensureListHeaders(table) {
-		var headerRow = table.querySelector('thead tr');
-		if (!headerRow || headerRow.querySelector('.scfos-th-bank-code')) {
+	function fieldClass(key) {
+		return 'scfos-field-' + key.replace(/[^a-z0-9_-]/gi, '');
+	}
+
+	function getFieldValue(item, key) {
+		return (item && item.fields && item.fields[key]) || '';
+	}
+
+	function insertBeforeDate(row, node) {
+		var dateCell = row.querySelector('.column-date');
+		if (dateCell) {
+			row.insertBefore(node, dateCell);
+		} else {
+			row.appendChild(node);
+		}
+	}
+
+	function ensureHeaderRow(row) {
+		if (!row || row.querySelector('.scfos-th-payment')) {
 			return;
 		}
 
-		var thBank = document.createElement('th');
-		thBank.className = 'manage-column scfos-th-bank-code';
-		thBank.textContent = cfg.bankCodeLabel;
+		cfg.displayFields.forEach(function (field) {
+			var th = document.createElement('th');
+			th.className = 'manage-column scfos-th-field ' + fieldClass(field.key);
+			th.textContent = field.label;
+			insertBeforeDate(row, th);
+		});
 
 		var thPay = document.createElement('th');
 		thPay.className = 'manage-column scfos-th-payment';
 		thPay.textContent = cfg.paymentLabel;
+		insertBeforeDate(row, thPay);
+	}
 
-		var dateTh = headerRow.querySelector('.column-date');
-		if (dateTh) {
-			headerRow.insertBefore(thBank, dateTh);
-			headerRow.insertBefore(thPay, dateTh);
-		} else {
-			headerRow.appendChild(thBank);
-			headerRow.appendChild(thPay);
-		}
-
-		// Mirror footer if present.
-		var footerRow = table.querySelector('tfoot tr');
-		if (footerRow && !footerRow.querySelector('.scfos-th-bank-code')) {
-			footerRow.insertBefore(thBank.cloneNode(true), footerRow.querySelector('.column-date') || null);
-			var payClone = thPay.cloneNode(true);
-			var dateFooter = footerRow.querySelector('.column-date');
-			if (dateFooter) {
-				footerRow.insertBefore(payClone, dateFooter);
-			} else {
-				footerRow.appendChild(payClone);
-			}
-		}
+	function ensureListHeaders(table) {
+		ensureHeaderRow(table.querySelector('thead tr'));
+		ensureHeaderRow(table.querySelector('tfoot tr'));
 	}
 
 	function ensureListCells(table, itemsMap) {
@@ -200,30 +211,32 @@
 			}
 
 			var item = itemsMap[id] || cache[id] || {
-				bank_code: '',
+				fields: {},
 				is_confirmed: false
 			};
 
-			var bankCell = row.querySelector('.scfos-col-bank-code');
 			var payCell = row.querySelector('.scfos-col-payment');
 
-			if (!bankCell) {
-				bankCell = document.createElement('td');
-				bankCell.className = 'scfos-col-bank-code';
+			if (!payCell) {
+				cfg.displayFields.forEach(function (field) {
+					var td = document.createElement('td');
+					td.className = 'scfos-col-field ' + fieldClass(field.key);
+					td.dataset.colname = field.label;
+					insertBeforeDate(row, td);
+				});
+
 				payCell = document.createElement('td');
 				payCell.className = 'scfos-col-payment';
-
-				var dateCell = row.querySelector('.column-date');
-				if (dateCell) {
-					row.insertBefore(bankCell, dateCell);
-					row.insertBefore(payCell, dateCell);
-				} else {
-					row.appendChild(bankCell);
-					row.appendChild(payCell);
-				}
+				payCell.dataset.colname = cfg.paymentLabel;
+				insertBeforeDate(row, payCell);
 			}
 
-			bankCell.textContent = item.bank_code || '—';
+			cfg.displayFields.forEach(function (field) {
+				var cell = row.querySelector('td.' + fieldClass(field.key));
+				if (cell) {
+					cell.textContent = getFieldValue(item, field.key) || '—';
+				}
+			});
 
 			var btn = payCell.querySelector('.scfos-payment-btn');
 			if (!btn) {
@@ -235,9 +248,11 @@
 		});
 	}
 
-	function renameDetailBankCode(table, item) {
+	function renameDetailFields(table, item) {
+		var formLabels = (item && item.form_labels) || {};
+
 		table.querySelectorAll('tbody tr').forEach(function (row) {
-			if (row.classList.contains('scfos-detail-payment-row') || row.classList.contains('scfos-detail-bank-row')) {
+			if (row.dataset.scfosField || row.classList.contains('scfos-detail-payment-row')) {
 				return;
 			}
 			var cells = row.querySelectorAll('td');
@@ -245,57 +260,58 @@
 				return;
 			}
 			var label = (cells[0].textContent || '').trim();
-			var value = (cells[1].textContent || '').trim();
-			var isBankField =
-				label === cfg.bankCodeField ||
-				label === cfg.bankCodeLabel ||
-				(item && item.bank_code !== '' && item.bank_code === value);
 
-			if (isBankField) {
-				cells[0].textContent = cfg.bankCodeLabel;
-				row.classList.add('scfos-bank-code-row');
-			}
+			cfg.displayFields.forEach(function (field) {
+				if (row.dataset.scfosField) {
+					return;
+				}
+				if (label === field.key || label === field.label || (formLabels[field.key] && label === formLabels[field.key])) {
+					cells[0].textContent = field.label;
+					row.dataset.scfosField = field.key;
+				}
+			});
 		});
 	}
 
-	function ensureDetailBankRow(table, item) {
+	function ensureDetailFieldRows(table, item) {
 		if (!item || !item.id) {
 			return;
 		}
 
-		var existing = table.querySelector('.scfos-detail-bank-row');
-		if (existing) {
-			var valueCell = existing.querySelector('td:last-child');
-			if (valueCell) {
-				valueCell.textContent = item.bank_code || '—';
-			}
-			return;
-		}
-
-		// If original bank_code row already exists and was renamed, skip injecting duplicate.
-		if (table.querySelector('.scfos-bank-code-row')) {
-			return;
-		}
-
-		var tr = document.createElement('tr');
-		tr.className = 'scfos-detail-bank-row';
-
-		var tdLabel = document.createElement('td');
-		tdLabel.textContent = cfg.bankCodeLabel;
-
-		var tdValue = document.createElement('td');
-		tdValue.textContent = item.bank_code || '—';
-
-		tr.appendChild(tdLabel);
-		tr.appendChild(tdValue);
-
 		var body = table.querySelector('tbody') || table;
-		var paymentRow = body.querySelector('.scfos-detail-payment-row');
-		if (paymentRow) {
-			body.insertBefore(tr, paymentRow);
-		} else {
-			body.insertBefore(tr, body.firstChild);
-		}
+
+		cfg.displayFields.forEach(function (field) {
+			var existing = body.querySelector('tr[data-scfos-field="' + field.key + '"]');
+			if (existing) {
+				if (existing.classList.contains('scfos-detail-field-row')) {
+					var valueCell = existing.querySelector('td:last-child');
+					if (valueCell) {
+						valueCell.textContent = getFieldValue(item, field.key) || '—';
+					}
+				}
+				return;
+			}
+
+			var tr = document.createElement('tr');
+			tr.className = 'scfos-detail-field-row';
+			tr.dataset.scfosField = field.key;
+
+			var tdLabel = document.createElement('td');
+			tdLabel.textContent = field.label;
+
+			var tdValue = document.createElement('td');
+			tdValue.textContent = getFieldValue(item, field.key) || '—';
+
+			tr.appendChild(tdLabel);
+			tr.appendChild(tdValue);
+
+			var paymentRow = body.querySelector('.scfos-detail-payment-row');
+			if (paymentRow) {
+				body.insertBefore(tr, paymentRow);
+			} else {
+				body.appendChild(tr);
+			}
+		});
 	}
 
 	function ensureDetailPaymentRow(table, item) {
@@ -389,17 +405,22 @@
 			}
 
 			var applyDetail = function (item) {
-				renameDetailBankCode(detailTable, item);
-				ensureDetailBankRow(detailTable, item);
+				renameDetailFields(detailTable, item);
+				ensureDetailFieldRows(detailTable, item);
 				ensureDetailPaymentRow(detailTable, item);
 			};
 
-			if (cache[detailId]) {
+			if (cache[detailId] && cache[detailId].form_labels) {
 				applyDetail(cache[detailId]);
 				return;
 			}
 
-			apiGet('submissions?ids=' + detailId)
+			if (detailFetching[detailId]) {
+				return;
+			}
+			detailFetching[detailId] = true;
+
+			apiGet('submissions?with_labels=1&ids=' + detailId)
 				.then(function (data) {
 					mergeItems(data.items || []);
 					if (cache[detailId]) {
@@ -408,6 +429,9 @@
 				})
 				.catch(function () {
 					/* ignore */
+				})
+				.then(function () {
+					detailFetching[detailId] = false;
 				});
 		}
 	}

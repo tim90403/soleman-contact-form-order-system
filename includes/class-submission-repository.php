@@ -68,7 +68,7 @@ class Submission_Repository {
 
 	/**
 	 * @param int[] $ids Submission IDs.
-	 * @return array<int, array{id:int,bank_code:string,contact_mail:string}>
+	 * @return array<int, array{id:int,fields:array<string,string>,contact_mail:string}>
 	 */
 	public function get_extra_for_ids( array $ids ) {
 		global $wpdb;
@@ -78,18 +78,19 @@ class Submission_Repository {
 			return array();
 		}
 
-		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-		$table        = $this->get_values_table();
+		$display_keys = array_keys( Plugin::get_display_fields() );
+		$keys         = array_merge( $display_keys, array( Plugin::FIELD_CONTACT_MAIL ) );
+
+		$id_placeholders  = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$key_placeholders = implode( ',', array_fill( 0, count( $keys ), '%s' ) );
+		$table            = $this->get_values_table();
 
 		$sql = $wpdb->prepare(
 			"SELECT submission_id, `key`, `value`
 			FROM {$table}
-			WHERE submission_id IN ({$placeholders})
-			AND `key` IN (%s, %s)",
-			array_merge(
-				$ids,
-				array( Plugin::FIELD_BANK_CODE, Plugin::FIELD_CONTACT_MAIL )
-			)
+			WHERE submission_id IN ({$id_placeholders})
+			AND `key` IN ({$key_placeholders})",
+			array_merge( $ids, $keys )
 		);
 
 		$rows = $wpdb->get_results( $sql, ARRAY_A );
@@ -98,7 +99,7 @@ class Submission_Repository {
 		foreach ( $ids as $id ) {
 			$data[ $id ] = array(
 				'id'           => $id,
-				'bank_code'    => '',
+				'fields'       => array_fill_keys( $display_keys, '' ),
 				'contact_mail' => '',
 			);
 		}
@@ -112,15 +113,56 @@ class Submission_Repository {
 					continue;
 				}
 
-				if ( Plugin::FIELD_BANK_CODE === $key ) {
-					$data[ $id ]['bank_code'] = (string) $row['value'];
-				} elseif ( Plugin::FIELD_CONTACT_MAIL === $key ) {
+				if ( Plugin::FIELD_CONTACT_MAIL === $key ) {
 					$data[ $id ]['contact_mail'] = (string) $row['value'];
+				} else {
+					$data[ $id ]['fields'][ $key ] = (string) $row['value'];
 				}
 			}
 		}
 
 		return $data;
+	}
+
+	/**
+	 * Labels the form snapshot assigned to each field, so the detail page can find the matching rows.
+	 *
+	 * @param int $submission_id Submission ID.
+	 * @return array<string, string> Field ID => original form label.
+	 */
+	public function get_form_field_labels( $submission_id ) {
+		global $wpdb;
+
+		$repository_class = '\ElementorPro\Modules\Forms\Submissions\Database\Repositories\Form_Snapshot_Repository';
+		if ( ! class_exists( $repository_class ) ) {
+			return array();
+		}
+
+		$table      = $this->get_submissions_table();
+		$submission = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT post_id, element_id FROM {$table} WHERE id = %d",
+				(int) $submission_id
+			)
+		);
+
+		if ( ! $submission ) {
+			return array();
+		}
+
+		$form = $repository_class::instance()->find( $submission->post_id, $submission->element_id );
+		if ( ! $form || empty( $form->fields ) || ! is_array( $form->fields ) ) {
+			return array();
+		}
+
+		$labels = array();
+		foreach ( $form->fields as $field ) {
+			if ( ! empty( $field['id'] ) && isset( $field['label'] ) && '' !== $field['label'] ) {
+				$labels[ (string) $field['id'] ] = (string) $field['label'];
+			}
+		}
+
+		return $labels;
 	}
 
 	/**
