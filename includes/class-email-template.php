@@ -7,151 +7,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Email_Template {
 
-	const CPT            = 'scfos_email_tpl';
-	const DOCUMENT_TYPE  = 'scfos_email_template';
 	const OPTION_ENABLED = 'scfos_email_enabled';
 	const OPTION_SUBJECT = 'scfos_email_subject';
-	const OPTION_POST_ID = 'scfos_email_template_id';
+	const OPTION_BODY    = 'scfos_email_body';
 	const MENU_SLUG      = 'scfos-email-template';
 
+	const DEFAULT_SUBJECT = '【臺中不動產經紀人協會】收款確認通知';
+
 	public function hooks() {
-		add_action( 'init', array( $this, 'register_post_type' ) );
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
 		add_action( 'admin_init', array( $this, 'handle_settings_save' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
-		add_filter( 'elementor/utils/is_post_support', array( $this, 'filter_elementor_post_support' ), 10, 3 );
-	}
-
-	public function register_post_type() {
-		self::register_post_type_static();
-		self::ensure_template_exists();
-	}
-
-	public static function register_post_type_static() {
-		if ( post_type_exists( self::CPT ) ) {
-			return;
-		}
-
-		register_post_type(
-			self::CPT,
-			array(
-				'labels'              => array(
-					'name'          => __( '表單系統信件版型', 'soleman-contact-form-order-system' ),
-					'singular_name' => __( '信件版型', 'soleman-contact-form-order-system' ),
-					'edit_item'     => __( '編輯信件版型', 'soleman-contact-form-order-system' ),
-				),
-				'public'              => false,
-				'show_ui'             => false,
-				'show_in_menu'        => false,
-				'exclude_from_search' => true,
-				'publicly_queryable'  => true,
-				'capability_type'     => 'post',
-				'map_meta_cap'        => true,
-				'hierarchical'        => false,
-				'supports'            => array( 'title', 'editor', 'elementor' ),
-				'has_archive'         => false,
-				'rewrite'             => false,
-				'query_var'           => true,
-			)
-		);
-
-		add_post_type_support( self::CPT, 'elementor' );
-	}
-
-	/**
-	 * @param bool   $is_supported Whether Elementor supports the post.
-	 * @param int    $post_id Post ID.
-	 * @param string $post_type Post type.
-	 * @return bool
-	 */
-	public function filter_elementor_post_support( $is_supported, $post_id, $post_type ) {
-		if ( self::CPT === $post_type ) {
-			return true;
-		}
-		return $is_supported;
-	}
-
-	/**
-	 * Ensure a single Elementor-editable template post exists.
-	 *
-	 * @return int
-	 */
-	public static function ensure_template_exists() {
-		$post_id = (int) get_option( self::OPTION_POST_ID, 0 );
-
-		if ( $post_id && get_post( $post_id ) && self::CPT === get_post_type( $post_id ) ) {
-			self::prepare_elementor_meta( $post_id );
-			return $post_id;
-		}
-
-		$existing = get_posts(
-			array(
-				'post_type'      => self::CPT,
-				'post_status'    => array( 'publish', 'draft' ),
-				'posts_per_page' => 1,
-				'orderby'        => 'ID',
-				'order'          => 'ASC',
-				'fields'         => 'ids',
-			)
-		);
-
-		if ( ! empty( $existing ) ) {
-			$post_id = (int) $existing[0];
-			update_option( self::OPTION_POST_ID, $post_id, false );
-			self::prepare_elementor_meta( $post_id );
-			return $post_id;
-		}
-
-		$post_id = wp_insert_post(
-			array(
-				'post_title'  => __( '收款確認信件版型', 'soleman-contact-form-order-system' ),
-				'post_status' => 'publish',
-				'post_type'   => self::CPT,
-			),
-			true
-		);
-
-		if ( is_wp_error( $post_id ) || ! $post_id ) {
-			return 0;
-		}
-
-		update_option( self::OPTION_POST_ID, (int) $post_id, false );
-		self::prepare_elementor_meta( (int) $post_id );
-
-		if ( ! get_option( self::OPTION_SUBJECT ) ) {
-			update_option( self::OPTION_SUBJECT, __( '收款確認通知', 'soleman-contact-form-order-system' ), false );
-		}
-
-		return (int) $post_id;
-	}
-
-	/**
-	 * @param int $post_id Template post ID.
-	 */
-	public static function prepare_elementor_meta( $post_id ) {
-		$post_id = (int) $post_id;
-		if ( $post_id <= 0 ) {
-			return;
-		}
-
-		if ( ! get_post_meta( $post_id, '_elementor_edit_mode', true ) ) {
-			update_post_meta( $post_id, '_elementor_edit_mode', 'builder' );
-		}
-
-		if ( ! get_post_meta( $post_id, '_elementor_template_type', true ) ) {
-			update_post_meta( $post_id, '_elementor_template_type', self::DOCUMENT_TYPE );
-		}
-
-		if ( ! get_post_meta( $post_id, '_wp_page_template', true ) ) {
-			update_post_meta( $post_id, '_wp_page_template', 'elementor_canvas' );
-		}
-	}
-
-	/**
-	 * @return int
-	 */
-	public function get_template_id() {
-		return self::ensure_template_exists();
 	}
 
 	/**
@@ -166,10 +32,42 @@ class Email_Template {
 	 */
 	public function get_subject() {
 		$subject = (string) get_option( self::OPTION_SUBJECT, '' );
-		if ( '' === $subject ) {
-			$subject = __( '收款確認通知', 'soleman-contact-form-order-system' );
+		if ( '' === trim( $subject ) ) {
+			return self::DEFAULT_SUBJECT;
 		}
 		return $subject;
+	}
+
+	/**
+	 * @return string
+	 */
+	public function get_body() {
+		$body = (string) get_option( self::OPTION_BODY, '' );
+		if ( '' === trim( $body ) ) {
+			return self::get_default_body();
+		}
+		return $body;
+	}
+
+	/**
+	 * @return string
+	 */
+	public static function get_default_body() {
+		return '<ul>
+ 	<li>課程名稱：[scfos_field id="course_name"]</li>
+ 	<li>姓名：[scfos_field id="name"]</li>
+ 	<li>出生年月日：[scfos_field id="field_9346bf7"]</li>
+ 	<li>身分證字號：[scfos_field id="user_id"]</li>
+ 	<li>戶籍地址：[scfos_field id="field_6904c67"]</li>
+ 	<li>通訊地址：[scfos_field id="field_1983256"]</li>
+ 	<li>手機：[scfos_field id="field_7344879"]</li>
+ 	<li>Email：[scfos_field id="contact_mail"]</li>
+ 	<li>公司電話：[scfos_field id="field_1dbc759"]</li>
+ 	<li>Line ID：[scfos_field id="field_1f984e4"]</li>
+ 	<li>最高學歷：[scfos_field id="field_38a5b95"]</li>
+ 	<li>公司名稱：[scfos_field id="field_84a4797"]</li>
+ 	<li>匯款末5碼：[scfos_field id="bank_code"]</li>
+</ul>';
 	}
 
 	public function register_menu() {
@@ -199,9 +97,11 @@ class Email_Template {
 
 		$enabled = isset( $_POST['scfos_email_enabled'] ) ? '1' : '0';
 		$subject = isset( $_POST['scfos_email_subject'] ) ? sanitize_text_field( wp_unslash( $_POST['scfos_email_subject'] ) ) : '';
+		$body    = isset( $_POST['scfos_email_body'] ) ? wp_kses_post( wp_unslash( $_POST['scfos_email_body'] ) ) : '';
 
 		update_option( self::OPTION_ENABLED, $enabled, false );
 		update_option( self::OPTION_SUBJECT, $subject, false );
+		update_option( self::OPTION_BODY, $body, false );
 
 		add_settings_error(
 			'scfos_email_settings',
@@ -225,6 +125,8 @@ class Email_Template {
 			array(),
 			scfos_asset_version( 'assets/css/email-template-admin.css' )
 		);
+
+		wp_enqueue_editor();
 	}
 
 	public function render_settings_page() {
@@ -232,61 +134,59 @@ class Email_Template {
 			return;
 		}
 
-		$template_id = $this->get_template_id();
-		$edit_url    = '';
-
-		if ( $template_id && class_exists( '\Elementor\Plugin' ) ) {
-			$document = \Elementor\Plugin::$instance->documents->get( $template_id );
-			if ( $document ) {
-				$edit_url = $document->get_edit_url();
-			} else {
-				$edit_url = admin_url( 'post.php?post=' . $template_id . '&action=elementor' );
-			}
-		}
-
 		settings_errors( 'scfos_email_settings' );
 		?>
 		<div class="wrap scfos-email-template-wrap">
 			<h1><?php echo esc_html__( '表單系統信件版型', 'soleman-contact-form-order-system' ); ?></h1>
 			<p class="description">
-				<?php echo esc_html__( '設定收款確認信件的主旨、啟用狀態，並以 Elementor 編輯信件版型。全站僅使用此一份啟用中的版型。', 'soleman-contact-form-order-system' ); ?>
+				<?php echo esc_html__( '設定收款確認信件的啟用狀態、Email 標題與內文。信件會套用固定 HTML 框架（含藍底「收款已確認」標題），內文支援 shortcode。', 'soleman-contact-form-order-system' ); ?>
 			</p>
 
 			<form method="post" action="">
 				<?php wp_nonce_field( 'scfos_save_email_settings', 'scfos_email_settings_nonce' ); ?>
 				<table class="form-table" role="presentation">
 					<tr>
-						<th scope="row"><?php echo esc_html__( '啟用信件版型', 'soleman-contact-form-order-system' ); ?></th>
+						<th scope="row"><?php echo esc_html__( '啟用信件', 'soleman-contact-form-order-system' ); ?></th>
 						<td>
 							<label>
 								<input type="checkbox" name="scfos_email_enabled" value="1" <?php checked( $this->is_enabled() ); ?> />
-								<?php echo esc_html__( '啟用後，按下「確認收款」時會以此版型寄出信件。', 'soleman-contact-form-order-system' ); ?>
+								<?php echo esc_html__( '啟用後，按下「確認收款」時會寄出信件。', 'soleman-contact-form-order-system' ); ?>
 							</label>
 						</td>
 					</tr>
 					<tr>
-						<th scope="row"><label for="scfos_email_subject"><?php echo esc_html__( '信件主旨', 'soleman-contact-form-order-system' ); ?></label></th>
+						<th scope="row"><label for="scfos_email_subject"><?php echo esc_html__( 'Email 標題', 'soleman-contact-form-order-system' ); ?></label></th>
 						<td>
-							<input type="text" class="regular-text" id="scfos_email_subject" name="scfos_email_subject" value="<?php echo esc_attr( $this->get_subject() ); ?>" />
+							<input type="text" class="large-text" id="scfos_email_subject" name="scfos_email_subject" value="<?php echo esc_attr( $this->get_subject() ); ?>" placeholder="<?php echo esc_attr( self::DEFAULT_SUBJECT ); ?>" />
+							<p class="description"><?php echo esc_html__( '可選填。空白時使用預設：', 'soleman-contact-form-order-system' ); ?><?php echo esc_html( self::DEFAULT_SUBJECT ); ?></p>
 						</td>
 					</tr>
 					<tr>
-						<th scope="row"><?php echo esc_html__( 'Elementor 版型', 'soleman-contact-form-order-system' ); ?></th>
+						<th scope="row"><label for="scfos_email_body"><?php echo esc_html__( '內文', 'soleman-contact-form-order-system' ); ?></label></th>
 						<td>
-							<?php if ( $edit_url ) : ?>
-								<a class="button button-primary button-hero scfos-edit-elementor" href="<?php echo esc_url( $edit_url ); ?>">
-									<?php echo esc_html__( '使用 Elementor 編輯信件版型', 'soleman-contact-form-order-system' ); ?>
-								</a>
-								<p class="description">
-									<?php echo esc_html__( '可在版型中加入「表單動態欄位」元件，或使用 shortcode 帶入欄位值。', 'soleman-contact-form-order-system' ); ?>
-									<br />
-									<code>[scfos_field id="bank_code"]</code>
-									<code>[scfos_field id="contact_mail"]</code>
-									<code>[scfos_field id="欄位ID" fallback="無資料"]</code>
-								</p>
-							<?php else : ?>
-								<p class="notice notice-warning inline"><?php echo esc_html__( '無法開啟 Elementor 編輯器，請確認 Elementor 已啟用。', 'soleman-contact-form-order-system' ); ?></p>
-							<?php endif; ?>
+							<?php
+							wp_editor(
+								$this->get_body(),
+								'scfos_email_body',
+								array(
+									'textarea_name' => 'scfos_email_body',
+									'textarea_rows' => 18,
+									'media_buttons' => false,
+									'teeny'         => false,
+									'quicktags'     => true,
+									'tinymce'       => array(
+										'toolbar1' => 'formatselect,bold,italic,bullist,numlist,link,unlink,undo,redo,code',
+										'toolbar2' => '',
+									),
+								)
+							);
+							?>
+							<p class="description">
+								<?php echo esc_html__( '支援 HTML。可用 shortcode 帶入表單欄位：', 'soleman-contact-form-order-system' ); ?>
+								<code>[scfos_field id="course_name"]</code>
+								<code>[scfos_field id="bank_code"]</code>
+								<code>[scfos_field id="欄位ID"]</code>
+							</p>
 						</td>
 					</tr>
 				</table>

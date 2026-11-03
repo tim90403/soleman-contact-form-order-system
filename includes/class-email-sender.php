@@ -38,7 +38,7 @@ class Email_Sender {
 		if ( ! $this->email_template->is_enabled() ) {
 			return new \WP_Error(
 				'scfos_email_disabled',
-				__( '信件版型尚未啟用，請先至「表單系統信件版型」啟用。', 'soleman-contact-form-order-system' )
+				__( '信件尚未啟用，請先至「表單系統信件版型」啟用。', 'soleman-contact-form-order-system' )
 			);
 		}
 
@@ -63,25 +63,17 @@ class Email_Sender {
 			);
 		}
 
-		$template_id = $this->email_template->get_template_id();
-		if ( ! $template_id ) {
-			return new \WP_Error(
-				'scfos_missing_template',
-				__( '找不到信件版型。', 'soleman-contact-form-order-system' )
-			);
-		}
+		Submission_Context::set( $fields, $submission_id );
+		$subject = do_shortcode( $this->email_template->get_subject() );
+		$body    = $this->render_email_html( do_shortcode( $this->email_template->get_body() ) );
+		Submission_Context::clear();
 
-		$body = $this->render_template( $template_id, $fields, $submission_id );
 		if ( '' === trim( wp_strip_all_tags( $body ) ) ) {
 			return new \WP_Error(
 				'scfos_empty_template',
-				__( '信件版型內容為空，請先以 Elementor 編輯版型。', 'soleman-contact-form-order-system' )
+				__( '信件內文為空，請先至「表單系統信件版型」設定內文。', 'soleman-contact-form-order-system' )
 			);
 		}
-
-		Submission_Context::set( $fields, $submission_id );
-		$subject = do_shortcode( $this->email_template->get_subject() );
-		Submission_Context::clear();
 
 		$headers = array( 'Content-Type: text/html; charset=UTF-8' );
 		$sent    = wp_mail( $to, $subject, $body, $headers );
@@ -97,51 +89,12 @@ class Email_Sender {
 	}
 
 	/**
-	 * @param int                   $template_id Template post ID.
-	 * @param array<string, string> $fields Field values.
-	 * @param int                   $submission_id Submission ID.
+	 * Wrap editable HTML body in the fixed email framework.
+	 *
+	 * @param string $content Resolved HTML body.
 	 * @return string
 	 */
-	private function render_template( $template_id, array $fields, $submission_id ) {
-		Submission_Context::set( $fields, $submission_id );
-
-		$css  = '';
-		$html = '';
-
-		try {
-			if ( class_exists( '\Elementor\Plugin' ) ) {
-				$elementor = \Elementor\Plugin::$instance;
-
-				// Ensure frontend mode for proper CSS generation.
-				$elementor->frontend->register_styles();
-				$elementor->frontend->enqueue_styles();
-
-				$html = $elementor->frontend->get_builder_content_for_display( $template_id, true );
-
-				$css_file = \Elementor\Core\Files\CSS\Post::create( $template_id );
-				if ( $css_file ) {
-					$css = $css_file->get_content();
-				}
-			}
-
-			// Resolve shortcodes while submission context is still available.
-			$html = do_shortcode( $html );
-		} catch ( \Throwable $e ) {
-			Submission_Context::clear();
-			return '';
-		}
-
-		Submission_Context::clear();
-
-		return $this->wrap_email_html( $html, $css );
-	}
-
-	/**
-	 * @param string $content Inner HTML.
-	 * @param string $css CSS content.
-	 * @return string
-	 */
-	private function wrap_email_html( $content, $css ) {
+	private function render_email_html( $content ) {
 		$site_name = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 
 		ob_start();
@@ -151,13 +104,28 @@ class Email_Sender {
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta name="color-scheme" content="light only" />
 	<title><?php echo esc_html( $site_name ); ?></title>
-	<?php if ( $css ) : ?>
-	<style type="text/css"><?php echo wp_strip_all_tags( $css ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></style>
-	<?php endif; ?>
 </head>
-<body style="margin:0;padding:0;background:#ffffff;">
-	<?php echo $content; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+<body style="margin:0;padding:0;background-color:#ffffff;color:#222222;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;">
+	<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-collapse:collapse;background-color:#ffffff;">
+		<tr>
+			<td align="center" style="padding:0;margin:0;">
+				<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:700px;border-collapse:collapse;margin:0 auto;background-color:#ffffff;">
+					<tr>
+						<td align="center" bgcolor="#1e73be" style="background-color:#1e73be;color:#ffffff;padding:48px 24px;text-align:center;font-size:36px;font-weight:700;line-height:1.3;">
+							收款已確認
+						</td>
+					</tr>
+					<tr>
+						<td align="left" style="background-color:#ffffff;color:#222222;padding:32px 28px;font-size:16px;line-height:1.7;text-align:left;">
+							<?php echo $content; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+						</td>
+					</tr>
+				</table>
+			</td>
+		</tr>
+	</table>
 </body>
 </html>
 		<?php

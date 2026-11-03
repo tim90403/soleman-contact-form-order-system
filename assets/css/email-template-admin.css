@@ -1,7 +1,12 @@
-.scfos-email-template-wrap .scfos-edit-elementor {
-	margin-top: 4px;
+.scfos-email-template-wrap .form-table th {
+	width: 160px;
 }
 
-.scfos-email-template-wrap .form-table th {
-	width: 200px;
+.scfos-email-template-wrap .wp-editor-wrap {
+	max-width: 760px;
+}
+
+.scfos-email-template-wrap code {
+	display: inline-block;
+	margin: 2px 4px 2px 0;
 }

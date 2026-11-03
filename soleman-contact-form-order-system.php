@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Soleman Contact Form Order System
  * Description: 擴充 Elementor Form Submissions：顯示匯款末5碼、確認收款按鈕，並以 Elementor 信件版型寄送確認信。
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: Soleman
  * Text Domain: soleman-contact-form-order-system
  * Requires Plugins: elementor, pro-elements
@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'SCFOS_VERSION', '1.1.0' );
+define( 'SCFOS_VERSION', '1.2.0' );
 define( 'SCFOS_FILE', __FILE__ );
 define( 'SCFOS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'SCFOS_URL', plugin_dir_url( __FILE__ ) );

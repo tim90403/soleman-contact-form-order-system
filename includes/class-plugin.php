@@ -103,18 +103,6 @@ final class Plugin {
 	/**
 	 * @return bool
 	 */
-	private function include_document_class() {
-		if ( ! class_exists( '\Elementor\Core\DocumentTypes\PageBase' ) ) {
-			return false;
-		}
-
-		require_once SCFOS_PATH . 'documents/class-email-template-document.php';
-		return true;
-	}
-
-	/**
-	 * @return bool
-	 */
 	private function include_widget_class() {
 		if ( ! class_exists( '\Elementor\Widget_Base' ) ) {
 			return false;
@@ -145,13 +133,13 @@ final class Plugin {
 	}
 
 	private function boot() {
-		$this->payment_status  = new Payment_Status();
-		$this->submissions     = new Submission_Repository();
-		$this->email_template  = new Email_Template();
-		$this->email_sender    = new Email_Sender( $this->email_template, $this->submissions );
-		$this->rest_api        = new Rest_Api( $this->payment_status, $this->submissions, $this->email_sender );
-		$this->submissions_ui  = new Submissions_UI( $this->payment_status );
-		$this->shortcodes      = new Shortcodes();
+		$this->payment_status = new Payment_Status();
+		$this->submissions    = new Submission_Repository();
+		$this->email_template = new Email_Template();
+		$this->email_sender   = new Email_Sender( $this->email_template, $this->submissions );
+		$this->rest_api       = new Rest_Api( $this->payment_status, $this->submissions, $this->email_sender );
+		$this->submissions_ui = new Submissions_UI( $this->payment_status );
+		$this->shortcodes     = new Shortcodes();
 
 		$this->payment_status->hooks();
 		$this->email_template->hooks();
@@ -159,22 +147,7 @@ final class Plugin {
 		$this->submissions_ui->hooks();
 		$this->shortcodes->hooks();
 
-		add_action( 'elementor/documents/register', array( $this, 'register_document' ) );
 		add_action( 'elementor/widgets/register', array( $this, 'register_widgets' ) );
-	}
-
-	/**
-	 * @param \Elementor\Core\Documents_Manager $documents_manager Documents manager.
-	 */
-	public function register_document( $documents_manager ) {
-		if ( ! $this->include_document_class() ) {
-			return;
-		}
-
-		$documents_manager->register_document_type(
-			Email_Template::DOCUMENT_TYPE,
-			Documents\Email_Template_Document::get_class_full_name()
-		);
 	}
 
 	/**
@@ -193,9 +166,11 @@ final class Plugin {
 		Payment_Status::create_table();
 
 		require_once SCFOS_PATH . 'includes/class-email-template.php';
-		Email_Template::register_post_type_static();
-		Email_Template::ensure_template_exists();
-
-		flush_rewrite_rules();
+		if ( false === get_option( Email_Template::OPTION_SUBJECT, false ) ) {
+			update_option( Email_Template::OPTION_SUBJECT, Email_Template::DEFAULT_SUBJECT, false );
+		}
+		if ( false === get_option( Email_Template::OPTION_BODY, false ) ) {
+			update_option( Email_Template::OPTION_BODY, Email_Template::get_default_body(), false );
+		}
 	}
 }
